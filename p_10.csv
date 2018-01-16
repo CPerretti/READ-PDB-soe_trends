@@ -1,0 +1,7 @@
+"","Trend strength","AR strength","gls","mk","pw"
+"1","strong trend","no AR",0.574,0.37,0.46
+"2","strong trend","medium AR",0.559,0.419,0.357
+"3","strong trend","strong AR",0.583,0.482,0.413
+"4","no trend","no AR",0.101,0.036,0.103
+"5","no trend","medium AR",0.263,0.136,0.171
+"6","no trend","strong AR",0.445,0.337,0.319
