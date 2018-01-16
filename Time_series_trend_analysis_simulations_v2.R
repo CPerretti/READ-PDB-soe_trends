@@ -21,7 +21,7 @@ for (p in PKG) {
 
 set.seed(436)
 
-n <- 100#0 #number of simulations
+n <- 1000 #number of simulations
 x <- 30 #number of periods
 
 # Trend parameters are from fitting a linear model to the
@@ -37,7 +37,7 @@ LTRENDstrong <- -0.262 + (0.147 * c(1:x))
 # investigate the effect of strong autocorrelation.
 ARmedium <- list(ar = 0.433)
 ARstrong <- list(ar = 0.8)
-# Mean AR sd from the resids of the real data
+# Mean AR sd from the mean resids of the real data
 ARsd <- 0.54^0.5
 NOAR <- list()
 
@@ -83,7 +83,6 @@ LTEMP3 <- TEMP1 + LTRENDstrong
 assign(paste0('LINEARweak_',k,sep=""),rbind(get(paste0('LINEARweak_',k,sep="")),LTEMP1))
 assign(paste0('LINEARmedium_',k,sep=""),rbind(get(paste0('LINEARmedium_',k,sep="")),LTEMP2))
 assign(paste0('LINEARstrong_',k,sep=""),rbind(get(paste0('LINEARstrong_',k,sep="")),LTEMP3))
-
 assign(paste0('NOTREND_',k, sep=""),rbind(get(paste0('NOTREND_',k, sep="")), TEMP1))
 
 for (y in c('TEMP1','LTEMP1','LTEMP2','LTEMP3')){
@@ -100,11 +99,8 @@ for (y in c('TEMP1','LTEMP1','LTEMP2','LTEMP3')){
   # 30-year linear model
   TEMP_lm <- fit_lm(dat = data.frame(series = get(y) %>% as.numeric,
                     time = 1:length(get(y))))
-  T_lm <- TEMP_lm$pval
-  # 30-year gam
-  TEMP_gam <- fit_gam(dat = data.frame(series = get(y) %>% as.numeric,
-                                       time = 1:length(get(y))))
-  T_gam <- TEMP_gam$pval
+  T_lm <- TEMP_lm$best_lm$pval
+  
 
 for (j in c(10,20)) {
   #Testind 20 & 10 year series with prewhitening Mann-Kendall technique
@@ -119,33 +115,32 @@ for (j in c(10,20)) {
   # 20-year and 10-year linear model
   TEMP_lm <- fit_lm(dat = data.frame(series = get(y)[j:x] %>% as.numeric,
                                      time = 1:length(get(y)[j:x])))
-  T_lm <- cbind(T_lm, TEMP_lm$pval)
+  T_lm <- cbind(T_lm, TEMP_lm$best_lm$pval)
   # 20-year and 10-year gam
-  TEMP_gam <- fit_gam(dat = data.frame(series = get(y)[j:x] %>% as.numeric,
-                                       time = 1:length(get(y)[j:x])))
-  T_gam <- cbind(T_gam, TEMP_gam$pval)
+  #TEMP_gam <- fit_gam(dat = data.frame(series = get(y)[j:x] %>% as.numeric,
+  #                                     time = 1:length(get(y)[j:x])))
+  #T_gam <- cbind(T_gam, TEMP_gam$pval)
 }
   colnames(T_1) <- c('p_30_pw','Slope30_pw','p_20_pw',
                      'Slope20_pw','p_10_pw','Slope10_pw')
   colnames(T_2) <- c('p_30_mk','p_20_mk','p_10_mk')
   colnames(T_lm) <- c('p_30_gls','p_20_gls','p_10_gls')
-  colnames(T_gam) <- c('p_30_gam','p_20_gam','p_10_gam')
   
 if (y=='TEMP1' & k!='NOAR') {assign(paste0('NOTREND_',k,'_RESULTS',sep=""),
                                     rbind(get(paste0('NOTREND_',k,'_RESULTS',sep="")),
-                                          cbind(T_1,T_2, T_lm, T_gam)))
+                                          cbind(T_1,T_2, T_lm)))
   } else if (y=='TEMP1' & k=='NOAR') {assign(paste0('NOTREND_',k,'_RESULTS',sep=""),
                                            rbind(get(paste0('NOTREND_',k,'_RESULTS',sep="")),
-                                                 cbind(T_1,T_2, T_lm, T_gam)))
+                                                 cbind(T_1,T_2, T_lm)))
   } else if (y=='LTEMP1') {assign(paste0('LINEARweak_',k,'_RESULTS',sep=""),
                                 rbind(get(paste0('LINEARweak_',k,'_RESULTS',sep="")),
-                                      cbind(T_1,T_2, T_lm, T_gam)))
+                                      cbind(T_1,T_2, T_lm)))
   } else if (y=='LTEMP2') {assign(paste0('LINEARmedium_',k,'_RESULTS',sep=""),
                                 rbind(get(paste0('LINEARmedium_',k,'_RESULTS',sep="")),
-                                      cbind(T_1,T_2, T_lm, T_gam)))
+                                      cbind(T_1,T_2, T_lm)))
   } else if (y=='LTEMP3') {assign(paste0('LINEARstrong_',k,'_RESULTS',sep=""),
                                 rbind(get(paste0('LINEARstrong_',k,'_RESULTS',sep="")),
-                                      cbind(T_1,T_2, T_lm, T_gam)))}
+                                      cbind(T_1,T_2, T_lm)))}
   }
 #rm(TEMP1,LTEMP1,QTEMP1)
 }
@@ -184,7 +179,7 @@ for (i in 1:length(results)){
   z <- get(results[i])
   z <- cbind(z[,grepl("p_",colnames(get(results[i]))) == TRUE],seq(1,nrow(z),1))
   z <- data.table(z)
-  z <- w2l(z, by = "V13", by.name = "replicate")
+  z <- w2l(z, by = "V10", by.name = "replicate")
   z <- cbind(z,rep(results[i],nrow(z)))
   p_result_mat[[i]] <- z
 }
@@ -195,15 +190,101 @@ p_results <-
   as.data.frame() %>%
   tidyr::separate(Var, 
                   c("var", "timeseries length", "method"),
-                  "_")
+                  "_") %>%
+  tidyr::separate(V2, 
+                  c("Trend strength", "AR strength", "Results"),
+                  "_") %>%
+  dplyr::mutate(`Trend strength` = substring(`Trend strength`, first = 7),
+                `Trend strength` = ifelse(`Trend strength` == "D",
+                                          "no",
+                                          `Trend strength`),
+                `Trend strength` = paste0(`Trend strength`, " trend"),
+                `AR strength` = substring(`AR strength`, first = 3),
+                `AR strength` = ifelse(`AR strength` == "AR",
+                                          "no",
+                                          `AR strength`),
+                `AR strength` = paste0(`AR strength`, " AR")) %>%
+  dplyr::select(-Results) %>%
+  tidyr::spread(method, Value) %>%
+  # remove runs that cause NAs in GLS (two runs out of 1000)
+  dplyr::filter(!is.na(gls)) %>%
+  tidyr::gather(method, Value, 
+                -replicate, -var, 
+                -`timeseries length`, -`Trend strength`,
+                -`AR strength`) %>%
+  dplyr::mutate(`Trend strength` = factor(`Trend strength`, 
+                                          levels = c("strong trend",
+                                                     "medium trend",
+                                                     "weak trend",
+                                                     "no trend")),
+                `AR strength` = factor(`AR strength`, 
+                                       levels = c("no AR",
+                                                  "medium AR",
+                                                  "strong AR")))
+  
   
 
+# Single scenario example
+ggplot(p_results %>% 
+         dplyr::filter(`Trend strength` == "strong trend",
+                       `AR strength` == "no AR"), 
+       aes(color = method, y = Value, 
+                      x = `timeseries length`)) +
+  geom_boxplot(outlier.size = 0.3, 
+               outlier.alpha = 0.2) +
+  ylab("p-value") +
+  ggtitle("Strong Trend and No AR") +
+  theme_bw() +
+  theme(axis.title=element_text(size=15))
 
 # Box and whisker plot of each scenario
 ggplot(p_results, aes(color = method, y = Value, 
                       x = `timeseries length`)) +
-  geom_boxplot() +
-  facet_wrap(~ V2, ncol = 3) +
-  ylab("p-value")
+  geom_boxplot(outlier.size = 0.3, 
+               outlier.alpha = 0.2) +
+  facet_grid(`Trend strength` ~ `AR strength`) +
+  ylab("p-value") +
+  theme_bw()
 
+# Make table of results
+p_count <- p_results
+p_count$p_0.05 <- 0
+p_count$p_0.05[p_count$Value<=0.05] <- 1
+p_count$N_sim <- 1
 
+p_count <- aggregate(cbind(p_0.05,N_sim)~`timeseries length`+method+`Trend strength`+`AR strength`,
+                     data=p_count, FUN=sum)
+p_count$p_0.05 <- p_count$p_0.05/p_count$N_sim
+p_count <- p_count[which(p_count$p_0.05!=0),]
+p_count <- p_count[order(p_count$`timeseries length`,p_count$`Trend strength`,p_count$`AR strength`,p_count$method),]
+names(p_count) <- c("timeseries length",'method','Trend strength','AR strength','Proportion significant', 'N')
+#write.csv(p_count, file="N_sim_less_05.csv")
+
+# Create a human-readable table for each
+# time series length
+p_count2table_all <-
+  p_count %>%
+  as.data.frame() %>%
+  tidyr::spread(method, `Proportion significant`)
+
+write.csv(p_count2table_all, file="p_all.csv")
+
+p_count2table_10 <-
+  p_count %>%
+  as.data.frame() %>%
+  dplyr::filter(`timeseries length` == 10,
+               `Trend strength` %in% c("strong trend", "no trend")) %>%
+  dplyr::select(-`timeseries length`, -`N`) %>%
+  tidyr::spread(method, `Proportion significant`)
+
+write.csv(p_count2table_10, file="p_10.csv")
+
+p_count2table_30 <-
+  p_count %>%
+  as.data.frame() %>%
+  dplyr::filter(`timeseries length` == 30,
+                `Trend strength` %in% c("strong trend", "no trend")) %>%
+  dplyr::select(-`timeseries length`, -`N`) %>%
+  tidyr::spread(method, `Proportion significant`)
+
+write.csv(p_count2table_30, file="p_30.csv")
